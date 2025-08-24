@@ -8,65 +8,42 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(express.static("public"));
 
-/** In-memory user store */
-const users = {};
-/*
-users[socketId] = {
-  name: string,
-  color: number,
-  state: { x:number, y:number, z:number, ry:number, sitting?:boolean }
-}
-*/
+let users = {};
 
 io.on("connection", (socket) => {
-  console.log("connected:", socket.id);
+  console.log("A user connected:", socket.id);
 
-  socket.on("setUsername", ({ name, color }) => {
-    // init user
-    users[socket.id] = {
-      name,
-      color,
-      state: { x: 0, y: 1.6, z: 5, ry: 0, sitting: false }
-    };
+  socket.on("setUsername", (name) => {
+    socket.data.username = name;
+    const color = "#" + Math.floor(Math.random() * 16777215).toString(16);
+    users[socket.id] = { name, color, x: 0, y: 0, z: 0 };
 
-    // send current world to the new client
-    socket.emit("init", { selfId: socket.id, users });
+    io.emit("updateUserList", users);
+    io.emit("userJoined", { id: socket.id, name, color });
+  });
 
-    // notify everyone about the newcomer
-    socket.broadcast.emit("userJoined", {
-      id: socket.id,
-      name,
-      color,
-      state: users[socket.id].state
-    });
-
-    // update the Online list for all
-    io.emit("updateUserList", Object.values(users).map(u => u.name));
+  socket.on("move", (pos) => {
+    if (users[socket.id]) {
+      users[socket.id].x = pos.x;
+      users[socket.id].y = pos.y;
+      users[socket.id].z = pos.z;
+      io.emit("updatePositions", users);
+    }
   });
 
   socket.on("chatMessage", (msg) => {
-    const u = users[socket.id];
-    if (!u) return;
-    io.emit("chatMessage", { user: u.name, msg });
-  });
-
-  // position/rotation updates from the client
-  socket.on("state", (state) => {
-    if (!users[socket.id]) return;
-    users[socket.id].state = state;
-    // send to everyone except the sender
-    socket.broadcast.emit("stateUpdate", { id: socket.id, state });
+    if (socket.data.username) {
+      io.emit("chatMessage", { user: socket.data.username, msg });
+    }
   });
 
   socket.on("disconnect", () => {
-    const u = users[socket.id];
-    if (u) {
+    if (users[socket.id]) {
+      const name = users[socket.id].name;
       delete users[socket.id];
-      io.emit("userLeft", u.name);
-      io.emit("removeUser", socket.id);
-      io.emit("updateUserList", Object.values(users).map(u => u.name));
+      io.emit("userLeft", name);
+      io.emit("updateUserList", users);
     }
-    console.log("disconnected:", socket.id);
   });
 });
 
