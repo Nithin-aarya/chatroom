@@ -184,16 +184,30 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    function onKeyDown(e) {
-      if (document.activeElement === document.getElementById('chat-input')) return;
-      const k = e.key.toLowerCase();
-      keys[k] = true;
-      if (k === 'e' && nearbyChair) toggleSit();
-    }
-    function onKeyUp(e) {
-      if (document.activeElement === document.getElementById('chat-input')) return;
-      keys[e.key.toLowerCase()] = false;
-    }
+   function normalizeKey(e) {
+  // Normalize WASD + arrows across Windows/Mac/Linux
+  switch (e.key) {
+    case "ArrowUp": return "w";
+    case "ArrowDown": return "s";
+    case "ArrowLeft": return "a";
+    case "ArrowRight": return "d";
+    default: return e.key.toLowerCase();
+  }
+}
+
+function onKeyDown(e) {
+  if (document.activeElement === document.getElementById("chat-input")) return;
+  const k = normalizeKey(e);
+  keys[k] = true;
+  if (k === "e" && nearbyChair) toggleSit();
+}
+
+function onKeyUp(e) {
+  if (document.activeElement === document.getElementById("chat-input")) return;
+  const k = normalizeKey(e);
+  keys[k] = false;
+}
+
 
     // ====== avatars ======
     function createAvatar(colorHex) {
@@ -411,3 +425,4 @@
   </script>
 </body>
 </html>
+
